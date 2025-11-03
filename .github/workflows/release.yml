@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+env:
+  LIBPLIST_VER: "2.7.0"
+  LIBTATSU_VER: "1.0.5"
+  LIBIMOBILEDEVICE_GLUE_VER: "1.3.2"
+  LIBIMOBILEDEVICE_VER: "1.4.0"
+  LIBUSBMUXD_VER: "2.1.1"
 
 jobs:
   build:
@@ -43,24 +49,50 @@ jobs:
         run: |
           choco install winfsp -y
           refreshenv
-      - name: Build required libraries
+
+      - name: Build libimobiledevice suite (versioned tarballs)
         run: |
-          echo "target_triplet=`gcc -dumpmachine`" >> $GITHUB_ENV
-          git config --global core.autocrlf false
+          set -euo pipefail
+          workspace="$PWD"
+          tmp="$PWD/_tmp_libs"
+          mkdir -p "$tmp"
+          cd "$tmp"
 
-          # List of repositories to build in order (dependencies first)
-          repos=("libplist" "libimobiledevice-glue" "libusbmuxd" "libtatsu" "libimobiledevice" )
+          base_url="https://github.com/libimobiledevice"
 
-          for repo in "${repos[@]}"; do
-            echo "Building $repo..."
-            
-            git clone --depth=1 --recursive "https://github.com/libimobiledevice/$repo"
-            pushd "$repo"
-            ./autogen.sh CC=gcc CXX=g++ --without-cython
-            make -j install
+          libs=("libplist" "libimobiledevice-glue" "libusbmuxd" "libtatsu" "libimobiledevice" )
+
+          for name in "${libs[@]}"; do
+            ver_var=$(echo "${name^^}_VER" | sed 's/-/_/g')
+            ver="${!ver_var:-}"
+            if [ -z "$ver" ]; then
+              echo "Version for $name not set (env var $ver_var)"
+              exit 1
+            fi
+
+            archive="${name}-${ver}.tar.bz2"
+            url="${base_url}/${name}/releases/download/${ver}/${archive}"
+            echo "=== Processing $name $ver ==="
+            echo "URL: $url"
+            curl -L -o "$archive" "$url"
+
+            echo "Extracting $archive"
+            tar xjf "$archive"
+
+            srcdir="${name}-${ver}"
+            pushd "$srcdir"
+
+            ./configure --without-cython
+            make -j"$(nproc)"
+            make install
             popd
-            echo "Built $repo successfully."
+            echo "Installed $name $ver"
           done
+
+          # cleanup
+          cd "$workspace"
+          rm -rf "$tmp"
+
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DPACKAGE_VERSION="${{ github.ref_name }}"
 
