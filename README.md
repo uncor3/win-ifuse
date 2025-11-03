@@ -6,13 +6,13 @@
 
 ## Download
 
-You can download the latest release from the [releases page](https://github.com/uncore/win-ifuse/releases).
+You can download the latest release from the [releases page](https://github.com/uncor3/win-ifuse/releases).
 
-[Latest Release](https://github.com/uncore/win-ifuse/releases/latest)
+[Latest Release](https://github.com/uncor3/win-ifuse/releases/latest)
 
 ## Usage
 
-Make sure to have AppleDeviceSupport drivers installed ( you can use this [script](https://github.com/NelloKudo/Apple-Mobile-Drivers-Installer)) and have your iphone paired (trust the computer), download from [releases](https://github.com/uncore/win-ifuse/releases), unzip , run the `install-win-fsp.bat` script as administrator once done open up a command prompt in the folder.
+Make sure to have AppleDeviceSupport drivers installed ( you can use this [script](https://github.com/NelloKudo/Apple-Mobile-Drivers-Installer)) and have your iphone paired (trust the computer), download from [releases](https://github.com/uncor3/win-ifuse/releases), unzip , run the `install-win-fsp.bat` script as administrator once done open up a command prompt in the folder.
 
 Run:
 
