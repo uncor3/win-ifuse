@@ -103,6 +103,9 @@ jobs:
       - name: Build the project
         run: cmake --build build
 
+      - name: Copy winfsp install script
+        run: cp install-win-fsp.bat build/dist/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
