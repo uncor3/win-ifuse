@@ -1,0 +1,78 @@
+name: Build win-ifuse
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            coreutils
+            base-devel
+            git
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-curl
+            make
+            libtool
+            autoconf
+            automake-wrapper
+          msystem: MINGW64
+
+      - name: Install WinFsp
+        shell: pwsh
+        run: |
+          choco install winfsp -y
+          refreshenv
+      - name: Build required libraries
+        run: |
+          echo "target_triplet=`gcc -dumpmachine`" >> $GITHUB_ENV
+          git config --global core.autocrlf false
+
+          # List of repositories to build in order (dependencies first)
+          repos=("libplist" "libimobiledevice-glue" "libusbmuxd" "libtatsu" "libimobiledevice" )
+
+          for repo in "${repos[@]}"; do
+            echo "Building $repo..."
+            
+            git clone --depth=1 --recursive "https://github.com/libimobiledevice/$repo"
+            pushd "$repo"
+            ./autogen.sh CC=gcc CXX=g++ --without-cython
+            make -j install
+            popd
+            echo "Built $repo successfully."
+          done
+      - name: Get short SHA
+        id: sha
+        run: echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DPACKAGE_VERSION="dev-${{ steps.sha.outputs.short_sha }}"
+
+      - name: Build the project
+        run: cmake --build build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: build/dist/*
+          name: win-ifuse-build

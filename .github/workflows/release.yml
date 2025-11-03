@@ -1,0 +1,85 @@
+name: Release win-ifuse
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            coreutils
+            base-devel
+            git
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-curl
+            make
+            libtool
+            autoconf
+            automake-wrapper
+            zip
+          msystem: MINGW64
+
+      - name: Install WinFsp
+        shell: pwsh
+        run: |
+          choco install winfsp -y
+          refreshenv
+      - name: Build required libraries
+        run: |
+          echo "target_triplet=`gcc -dumpmachine`" >> $GITHUB_ENV
+          git config --global core.autocrlf false
+
+          # List of repositories to build in order (dependencies first)
+          repos=("libplist" "libimobiledevice-glue" "libusbmuxd" "libtatsu" "libimobiledevice" )
+
+          for repo in "${repos[@]}"; do
+            echo "Building $repo..."
+            
+            git clone --depth=1 --recursive "https://github.com/libimobiledevice/$repo"
+            pushd "$repo"
+            ./autogen.sh CC=gcc CXX=g++ --without-cython
+            make -j install
+            popd
+            echo "Built $repo successfully."
+          done
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DPACKAGE_VERSION="${{ github.ref_name }}"
+
+      - name: Build the project
+        run: cmake --build build
+
+      - name: Zip the build output with install script
+        run: |
+          cp install-win-fsp.bat build/dist/
+          cd build/dist
+          zip -r ../win-ifuse-${{ github.ref_name }}.zip *
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/win-ifuse-${{ github.ref_name }}.zip
+          asset_name: win-ifuse-${{ github.ref_name }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: |
+            $(git log -1 --pretty=format:"%h - %s (%an, %ad)" --date=short)
