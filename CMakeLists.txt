@@ -38,7 +38,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 find_program(GCC_EXECUTABLE NAMES gcc)
 get_filename_component(MSYS2_BIN_PATH ${GCC_EXECUTABLE} DIRECTORY)
 
-if(NOT DEFINED NO_DEPLOY)
+if(NOT DEFINED NO_DEPLOY_WIN_IFUSE)
 add_custom_command(
     TARGET ${PROJECT_NAME}
     POST_BUILD
@@ -46,7 +46,7 @@ add_custom_command(
         -DEXECUTABLE_PATH=$<TARGET_FILE:${PROJECT_NAME}>
         -DMSYS2_BIN_PATH=${MSYS2_BIN_PATH}
         -DCMAKE_CURRENT_BINARY_DIR=$<TARGET_FILE_DIR:${PROJECT_NAME}>
-        -P ${CMAKE_SOURCE_DIR}/cmake/deploy.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deploy.cmake
     COMMENT "Running deployment script to copy dependencies..."
     VERBATIM
 )
